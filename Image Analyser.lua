@@ -111,6 +111,10 @@ local selectedCaptureMode = prefs.getString("capture_mode", CAPTURE_MODES.DISABL
 local useCustomInstructions = prefs.getBoolean("use_custom_instructions", false)
 local customImageInstructions = prefs.getString("custom_image_instructions", "")
 local selectedAiLanguage = prefs.getString("selected_ai_language", "English")
+local ttsEnabled = prefs.getBoolean("tts_enabled", false)
+local selectedVoice = prefs.getString("tts_voice", "alloy")
+local TTS_VOICES = {"alloy", "echo", "fable", "onyx", "nova", "shimmer"}
+local ttsPlayer = nil
 
 local function buildPayload(prompt)
     local payload = {
@@ -237,6 +241,35 @@ function stopBackgroundMusic()
     end
 end
 
+local function playTTS(text)
+    if not ttsEnabled or not text or text == "" then return end
+    local encoded = text:gsub("([^%w%-%.%_%~ ])", function(c)
+        return string.format("%%%02X", string.byte(c))
+    end):gsub(" ", "+")
+    local url = "https://openai-tts-ayush-i8zr.vercel.app/tts?text=" .. encoded .. "&voice=" .. selectedVoice
+    Http.get(url, {}, function(code, audioData)
+        if code ~= 200 or not audioData or #audioData == 0 then return end
+        local tmpFile = File(context.getCacheDir(), "tts_response.mp3")
+        local fos = FileOutputStream(tmpFile)
+        local bytes = {}
+        for i = 1, #audioData do
+            bytes[i] = string.byte(audioData, i)
+        end
+        fos.write(byte(bytes))
+        fos.close()
+        mainHandler.post(Runnable { run = function()
+            if ttsPlayer then
+                ttsPlayer.release()
+                ttsPlayer = nil
+            end
+            ttsPlayer = MediaPlayer()
+            ttsPlayer.setDataSource(tmpFile.getAbsolutePath())
+            ttsPlayer.prepare()
+            ttsPlayer.start()
+        end})
+    end)
+end
+
 function openTelegramChannel1()
     service.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/jieshuoofficial")))
 end
@@ -273,6 +306,7 @@ end
 local function showUnifiedResponseDialog(title, content)
     lastAIReply = content or ""
     service.asyncSpeak(lastAIReply)
+    playTTS(lastAIReply)
     local isScreenshot = (currentSessionType == "screenshot")
 
     local dialogLayout = {
@@ -377,6 +411,7 @@ local function showUnifiedResponseDialog(title, content)
                                 lastAIReply = reply
                                 response_text.setText(reply)
                                 service.speak(reply)
+                                playTTS(reply)
                                 user_query_input_unified.setText("")
                             end)
                         else
@@ -661,6 +696,38 @@ showConfigDialog = function()
             {Switch, id = "play_sound_switch", text = STRINGS.PLAY_SOUND_SWITCH, checked = playAnalysisSound, layout_width = "fill", layout_height = "wrap_content", layout_marginTop = "16dp"},
             {Switch, id = "custom_instructions_switch", text = STRINGS.CUSTOM_INSTRUCTIONS_SWITCH, checked = useCustomInstructions, layout_width = "fill", layout_height = "wrap_content", layout_marginTop = "16dp"},
             {Switch, id = "custom_api_switch", text = STRINGS.CUSTOM_API_SWITCH, checked = useCustomApi, layout_width = "fill", layout_height = "wrap_content", layout_marginTop = "16dp"},
+            {Switch, id = "tts_switch", text = "OpenAI TTS", checked = ttsEnabled, layout_width = "fill", layout_height = "wrap_content", layout_marginTop = "16dp"},
+            {
+                Button,
+                id = "tts_voice_button",
+                text = "TTS Voice: " .. selectedVoice,
+                layout_width = "fill",
+                layout_height = "wrap_content",
+                layout_marginTop = "4dp",
+                enabled = ttsEnabled,
+                onClick = function()
+                    local dlg_voice
+                    local voiceLayout = {
+                        ListView,
+                        id = "voice_list_view",
+                        layout_width = "fill",
+                        layout_height = "wrap_content"
+                    }
+                    dlg_voice = LuaDialog(service)
+                    dlg_voice.setTitle("Select TTS Voice")
+                    dlg_voice.setView(loadlayout(voiceLayout))
+                    local va = ArrayAdapter(service, android.R.layout.simple_list_item_1, TTS_VOICES)
+                    voice_list_view.setAdapter(va)
+                    voice_list_view.onItemClick = function(p, v, pos, i)
+                        selectedVoice = TTS_VOICES[pos + 1]
+                        editor.putString("tts_voice", selectedVoice)
+                        editor.commit()
+                        tts_voice_button.setText("TTS Voice: " .. selectedVoice)
+                        dlg_voice.dismiss()
+                    end
+                    dlg_voice.show()
+                end
+            },
             {
                 Button,
                 id = "language_button",
