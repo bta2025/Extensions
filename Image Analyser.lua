@@ -1,5 +1,6 @@
 local dir = PLUGIN_DIR or package.searchpath("main", package.path):match("(.*)main.lua")
 local uiLanguages = assert(loadfile(dir .. "ui.lua"))()
+local aiLanguages = assert(loadfile(dir .. "languages.lua"))()
 
 require "import"
 import "android.content.*"
@@ -109,9 +110,14 @@ local CAPTURE_MODES = {
 local selectedCaptureMode = prefs.getString("capture_mode", CAPTURE_MODES.DISABLED)
 local useCustomInstructions = prefs.getBoolean("use_custom_instructions", false)
 local customImageInstructions = prefs.getString("custom_image_instructions", "")
+local selectedAiLanguage = prefs.getString("selected_ai_language", "English")
 
 local function buildPayload(prompt)
-    local payload = {image = currentMediaBase64, prompt = prompt}
+    local payload = {
+        image = currentMediaBase64,
+        prompt = prompt,
+        language = selectedAiLanguage
+    }
     if useCustomApi and customApiKey ~= "" then
         payload.key = customApiKey
     end
@@ -541,6 +547,45 @@ local function captureAndProcess(node, isFullScreen)
     end
 end
 
+local function showLanguagePickerDialog()
+    local dlg_lang
+    local langDialogLayout = {
+        LinearLayout,
+        orientation = "vertical",
+        layout_width = "fill",
+        layout_height = "fill",
+        {
+            ListView,
+            id = "lang_list_view",
+            layout_width = "fill",
+            layout_height = "fill",
+            layout_weight = "1"
+        },
+        {
+            Button,
+            text = STRINGS.CANCEL_BUTTON,
+            layout_width = "fill",
+            layout_height = "wrap_content",
+            onClick = function() dlg_lang.dismiss() end
+        }
+    }
+    dlg_lang = LuaDialog(service)
+    dlg_lang.setTitle("AI Response Language")
+    dlg_lang.setView(loadlayout(langDialogLayout))
+    local adapter = ArrayAdapter(service, android.R.layout.simple_list_item_1, aiLanguages)
+    lang_list_view.setAdapter(adapter)
+    lang_list_view.onItemClick = function(parent, view, position, id)
+        selectedAiLanguage = aiLanguages[position + 1]
+        editor.putString("selected_ai_language", selectedAiLanguage)
+        editor.commit()
+        if language_button then
+            language_button.setText("Language: " .. selectedAiLanguage)
+        end
+        dlg_lang.dismiss()
+    end
+    dlg_lang.show()
+end
+
 local function showCustomInstructionsDialog()
     local dlg_instructions
     local layout = {
@@ -616,6 +661,15 @@ showConfigDialog = function()
             {Switch, id = "play_sound_switch", text = STRINGS.PLAY_SOUND_SWITCH, checked = playAnalysisSound, layout_width = "fill", layout_height = "wrap_content", layout_marginTop = "16dp"},
             {Switch, id = "custom_instructions_switch", text = STRINGS.CUSTOM_INSTRUCTIONS_SWITCH, checked = useCustomInstructions, layout_width = "fill", layout_height = "wrap_content", layout_marginTop = "16dp"},
             {Switch, id = "custom_api_switch", text = STRINGS.CUSTOM_API_SWITCH, checked = useCustomApi, layout_width = "fill", layout_height = "wrap_content", layout_marginTop = "16dp"},
+            {
+                Button,
+                id = "language_button",
+                text = "Language: " .. selectedAiLanguage,
+                layout_width = "fill",
+                layout_height = "wrap_content",
+                layout_marginTop = "8dp",
+                onClick = function() showLanguagePickerDialog() end
+            },
             {
                 Button,
                 id = "instructions_button",
