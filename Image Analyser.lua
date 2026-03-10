@@ -1,4 +1,4 @@
-local dir = package.searchpath("main", package.path):match("(.*)main.lua")
+local dir = PLUGIN_DIR or package.searchpath("main", package.path):match("(.*)main.lua")
 local uiLanguages = assert(loadfile(dir .. "ui.lua"))()
 
 require "import"
