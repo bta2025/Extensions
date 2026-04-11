@@ -1,12 +1,15 @@
 local API_URL = "https://ai-video.shrishyamdevs.com/generate?prompt="
 local CHAT_API_URL = "https://ai-chat.shrishyamdevs.com/v1/chat/completions"
 local MAX_PROMPT_LENGTH = 300
+local BRAND_DIR = "Shri Shyam Devs"
 local SAVE_DIR = "AI Video Generator"
 
 function createVideoDirectory()
 local ok, dir = pcall(function()
 local dl = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-local d = File(dl, SAVE_DIR)
+local brand = File(dl, BRAND_DIR)
+if not brand.exists() then brand.mkdirs() end
+local d = File(brand, SAVE_DIR)
 if not d.exists() then d.mkdirs() end
 return d
 end)
@@ -74,6 +77,7 @@ return n
 end
 
 function downloadVideo(url, filename, callback)
+if isVpnActive() then callback(false, "VPN detected. Please disconnect VPN.") return end
 if not url or url == "" then callback(false, "Invalid URL") return end
 Thread(Runnable{run = function()
 local dir = createVideoDirectory()
@@ -99,6 +103,7 @@ end}).start()
 end
 
 function generateVideo(prompt, callback)
+if isVpnActive() then callback(false, "VPN detected. Please disconnect VPN.") return end
 local enc = urlEncode(prompt)
 Http.get(API_URL .. enc, nil, function(code, content)
 if code == 200 then
@@ -115,6 +120,7 @@ end)
 end
 
 function improvePrompt(prompt, callback)
+if isVpnActive() then callback(false, "VPN detected. Please disconnect VPN.") return end
 local cjson = require("cjson")
 local body = cjson.encode({
 model = "llama-3.3-70b-versatile",
