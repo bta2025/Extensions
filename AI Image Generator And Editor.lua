@@ -538,8 +538,7 @@ LinearLayout, orientation="horizontal", layout_width="fill", layout_height="wrap
 LinearLayout, orientation="horizontal", layout_width="fill", layout_height="wrap", gravity="center", layout_marginBottom="6dp",
 {Button, id="emailBtn", text="Email Us", layout_width="0dp", layout_weight=1, layout_height="44dp", textSize="12sp", backgroundColor="#E94560", textColor="#FFFFFF", layout_marginEnd="6dp"},
 {Button, id="telegramBtn", text="Join Shri Shyam Devs", layout_width="0dp", layout_weight=1, layout_height="44dp", textSize="12sp", backgroundColor="#0F3460", textColor="#FFFFFF"}
-},
-{Button, id="friendBtn", text="Join Plugins impacientes", layout_width="fill", layout_height="44dp", textSize="12sp", backgroundColor="#533483", textColor="#FFFFFF"}
+}
 }
 
 local mainView = loadlayout(mainLayout)
@@ -735,7 +734,6 @@ manageBtn.onClick = function() showManageImages() end
 closeBtn.onClick = function() mainDlg.dismiss() end
 emailBtn.onClick = function() openUrl("mailto:support@shrishyamdevs.com") end
 telegramBtn.onClick = function() openUrl("https://t.me/shrishyamdevs") end
-friendBtn.onClick = function() openUrl("https://t.me/Pluginimpaciente") end
 mainDlg.show()
 end
 
